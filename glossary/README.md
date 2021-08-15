@@ -4,9 +4,11 @@ title: 👉PMem相关专业术语👈
 tag: pmem glossary
 ---
 
-## PMem相关专业术语
+**PMem相关专业术语**
 
 资料来源：[https://pmem.io/glossary/](https://pmem.io/glossary/)
+
+您可以在此处找到与持久内存(PMem)相关的术语列表。其中许多术语具有广泛的含义，但以下定义特别关注它们与PMem的关系。
 
 [TOC]
 
