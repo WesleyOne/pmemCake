@@ -1,5 +1,6 @@
-![公众号]({{ site.baseurl }}/assets/images/qrcode.png){:.border.rounded}
+![公众号](https://raw.githubusercontent.com/WesleyOne/wesleyone.github.io/master/docs/assert/images/qrcode.png){:.border.rounded}
 
-# Cake-template🍰
+# Pmem学习笔记🍰
 
-笔记项目模版
+https://pmem.io/
+持久内存编程
