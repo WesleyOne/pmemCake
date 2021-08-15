@@ -32,7 +32,7 @@ tag: pmem glossary
 
 ​		3D XPoint（读作*three dee cross point*）是 [Intel傲腾Optane](#optane)产品线中使用的介质，该介质分为固态磁盘(SSD) 产品和持久性内存(PMem) 产品。更多细节查看[英特尔的网站](http://intel.com/optane)、[维基百科](https://en.wikipedia.org/wiki/3D_XPoint)
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/3dxpoint.jpeg" height="200px"/>
+<img src="./3dxpoint.jpeg" height="200px"/>
 
 
 
@@ -42,7 +42,7 @@ tag: pmem glossary
 
 ​		**ADR**是一种硬件功能，可在断电时将存储数据从__内存控制器写入挂起队列 (WPQ) __刷到其目的地。ADR 也可以选择性地刷I/O控制器里pending的 DMA 存储数据。
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/adr.jpeg" height="300px"/>
+<img src="./adr.jpeg" height="300px"/>
 
 ​		如上图所示，在通往持久内存 DIMM 的途中，存储数据可以驻留在多个位置。下面的红色虚线框显示了 ADR 域——到达该域的存储受到 ADR 的断电保护，ADR 会flushes内存控制器中的队列，如图中的梯形所示。所有支持持久内存的 Intel 系统都需要 ADR，这意味着必须在平台级别（包括 CPU、主板、电源、DIMM 和 BIOS）支持该功能。所有 [NVDIMM-N](#nvdimm)产品以及 Intel 的[傲腾Optane](#optane) PMem 都需要系统支持 ADR 。
 
@@ -58,7 +58,7 @@ tag: pmem glossary
 
 ​		[Intel 傲腾Optane PMem](#optane)产品可以配置为两种模式：**App Direct**和[Memory Mode](#memory-mode)。有关产品详细信息，请参阅 [英特尔傲腾网站](http://intel.com/optane)。App Direct 模式提供 [持久内存编程模型](#programming-model)。
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/app_direct.jpeg" height="300px"/>
+<img src="./app_direct.jpeg" height="300px"/>
 
 ​		以这种方式配置时，操作系统可以对持久化内存感知应用程序提供直接访问或[DAX](#dax)。这种方式允许应用程序像加载/存储内存一样访问持久化数据。
 
@@ -102,7 +102,7 @@ tag: pmem glossary
 
 ​		当[persistent-memory](#persistent-memory)某个位置遇到无法纠正的错误时，该数据就会丢失。Intel 平台上的内存以 64 字节缓存行的形式访问，但在某些情况下，丢失单个位置可能会导致应用程序丢失更大的数据块。这被称为**Blast Radius**效应。
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/blast_radius.jpeg" height="300px"/>
+<img src="./blast_radius.jpeg" height="300px"/>
 
 ​		如上图所示，包含64 字节损坏位置（例如不可纠正的错误）可能会使其损坏大小进制为该设备用作其*ECC 块大小的任何值*。Linux 操作系统可以通过[ARS](https://pmem.io/glossary/#ars)机制发现这些损坏位置。Linux 内核中使用 以512字节块的数据结构来追踪这些区域的[Bad Blocks](#bad-blocks)，因此损坏大小将进制到 512 字节。如果应用程序内存映射该文件，操作系统将在该位置映射一个无效page，再次将大小进制到更大的 4096 字节（Intel系统上的page大小）。
 
@@ -143,7 +143,7 @@ tag: pmem glossary
 
 ​		CLFLUSHOPT 指令总是失效缓存行，这意味着对该地址的下一次访问将是 CPU 缓存未命中，即使它在刚刷新后不久发生。将此与[CLWB](#clwb) 指令进行比较，CLWB指令允许该缓存行保持有效。
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/flush_isa.jpeg" height="300px"/>
+<img src="./flush_isa.jpeg" height="300px"/>
 
 > 原文evict个人译为失效，欢迎指正
 
@@ -157,7 +157,7 @@ tag: pmem glossary
 
 ​		与[CLFLUSHOPT](https://pmem.io/glossary/#clflushopt)一样，CLWB 指令不影响包含的[fence](https://pmem.io/glossary/#fence)，因此在使用此指令刷新范围后，通常会发出 SFENCE 指令。
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/flush_isa.jpeg" height="300px"/>
+<img src="./flush_isa.jpeg" height="300px"/>
 
 
 
@@ -181,7 +181,7 @@ tag: pmem glossary
 
 ​		[Pmem编程模型](#programming-model)里规定，应用程序可以利用操作系统提供的标准内存映射文件API，直接映射永久存储器。这个功能，在系统中常被称为[mmap](#mmap)和[MapViewOfFile](#mapviewoffile)，其绕过page cache，在 Linux 和 Windows 中都被命名为**DAX**。DAX 是*direct access*缩写 ，是添加到操作系统以支持持久内存的关键功能。
 
-​		<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/dax.jpeg" height="300px"/>
+​		<img src="./dax.jpeg" height="300px"/>
 
 ​		如上图所示，应用程序使用标准 API 打开文件，然后进行内存映射。 感知PMem的文件系统的工作是提供 DAX 映射，以便在应用程序访问内存范围时不会发生[paging](#paging)。
 
@@ -277,7 +277,7 @@ tag: pmem glossary
 
 ​		**eADR**是一种硬件功能，可在**断电时**将存储从*CPU 缓存*和*内存控制器写入挂起队列 (WPQ)*刷新到目的地。
 
-<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/adr.jpeg" height="300px"/>
+<img src="./adr.jpeg" height="300px"/>
 
 ​		如上图所示，在通往持久内存 DIMM 的途中，存储可以驻留在多个位置。下面的红色虚线框显示了 ADR 域——到达该区域的存储数据受到[ADR ](#adr)断电保护，它会刷新内存控制器中的队列，如图中的梯形所示。所有支持持久内存的英特尔系统都需要 ADR。图中较大的红色虚线框说明了一个可选的平台功能**eADR**，用于 CPU 缓存刷新。
 
@@ -425,7 +425,7 @@ tag: pmem glossary
 
 ​		**内存模式**结合了两层内存，DRAM 和 PMem，有时也称为**2LM**或**two-level memory**。
 
-​		<img src="/Users/wesleyone/Documents/GitHub/pmemCake/glossary/memory_mode.jpeg" height="320px"/>
+​		<img src="./memory_mode.jpeg" height="320px"/>
 
 ​		以这种方式配置时，系统 DRAM 充当内存端缓存。当访问缓存命中时，数据以 DRAM 性能从 DRAM（*近内存*）返回。当访问缓存未命中时，以 PMem 性能从 PMem（*远内存*）获取数据。Intel 的内存模式在内存端缓存中使用 64 字节大小的缓存行。
 
