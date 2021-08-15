@@ -4,7 +4,7 @@ title: 👉PMem相关专业术语👈
 tag: pmem glossary
 ---
 
-**PMem相关专业术语**
+## PMem相关专业术语
 
 资料来源：[https://pmem.io/glossary/](https://pmem.io/glossary/)
 
