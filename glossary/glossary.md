@@ -8,7 +8,7 @@ tag: pmem glossary
 
 资料来源：[https://pmem.io/glossary/](https://pmem.io/glossary/)
 
-您可以在此处找到与持久内存(PMem)相关的术语列表。其中许多术语具有广泛的含义，但以下定义特别关注它们与PMem的关系。
+您可以在此处找到与持久内存(PMem)相关的术语列表。其中许多术语具有广泛的含义，但以下介绍特别关注它们与PMem的关系。
 
 [TOC]
 
@@ -431,5 +431,311 @@ tag: pmem glossary
 
 ​		**内存模式**是持久内存的易失性用途，软件不需要内存的持久功能，事实上，傲腾Optane PMem 设备会在每次启动时以加密方式扰乱数据，以确保预期的易失性volatile语义。
 
-​		尽管这种**2LM**配置在任何两层内存之间在技术上是可行的，但其主要流行是提供高容量的系统主内存，而不需要花费相同容量的 DRAM 成本。
+​		尽管从技术上讲，这种**2LM**配置在任何两层内存之间都是可行的，但其主要流行是提供高容量的系统主内存，而不需要花费相同容量的 DRAM 成本。
+
+
+
+### mmap
+
+(POSIX Memory Map System Call)
+
+​		POSIX 文件 API 包含使用系统调用**mmap**来对文件进行内存映射的能力。
+
+​		内存映射文件在应用程序的地址空间中显示为一系列虚拟内存，允许应用程序像加载和存储内存一样访问它。对于存储的文件，这是有用的，因为当应用程序访问该页时，操作系统使用[分页](#paging)将页的内容带入[DRAM](https://pmem.io/glossary/#dram)。对于[持久内存](#persistent-memory)，感知PMem文件系统允许内存映射文件直接访问 PMem，该功能称为[DAX](#dax)。
+
+​		Linux 持久内存支持包括一个新的 mmap 标志，`MAP_SYNC`. 使用 MAP_SYNC 成功的 DAX 映射意味着应用程序可以安全地使用[CLWB ](#clwb)等指令将其更改刷新持久化。如果没有`MAP_SYNC`，确保持久性的唯一方法是使用标准的系统刷新调用命令，如[msync](#msync)。
+
+​		在[Linux手册页](https://man7.org/linux/man-pages/man2/mmap.2.html) 包含关于如何使用这个系统调用的细节。
+
+​		Windows 上的等效系统调用是[MapViewOfFile](#mapviewoffile)。
+
+
+
+### msync
+
+(POSIX Flush System Call)
+
+​		[PMem 编程模型](#programming-model)的一项原则是标准文件 API 也能在 PMem 文件上正常工作。对于像 Linux 这样的 POSIX 系统，用于内存映射文件的标准 API 是 [mmap](#mmap)，而将任何存储刷新持久化到该区域的标准方法是**msync**。
+
+​		当使用MAP_SYNC标志将PMem文件成功地[DAX](#dax)映射到mmap时，也可以使用[CLWB](#clwb)等刷新指令直接从用户空间刷新到存储。这通常比使用系统调用进行刷新要快得多，但两者都可行。
+
+​		POSIX 系统上的 msync 大致相当于Windows上的 [FlushViewOfFile](#flushviewoffile)。
+
+
+
+### Namespace
+
+​		**命名空间**是划分容量到逻辑设备的一种方法。这与将 SCSI 存储阵列划分为 SCSI 逻辑单元 (LUNs) 的方式类似。NVM Express 规范定义了命名空间在 NVMe SSD 上的工作方式，ACPI 规范定义了命名空间在[NVDIMM 上](#nvdimm)工作方式。NVDIMM 版本在 CXL 2.0 中被扩展并添加到 [CXL](#cxl)规范中，以便 CXL 上的 PMem 可以用相同方式定义命名空间。
+
+​		持久内存命名空间的管理比传统存储更复杂，因为容量通常跨设备交错。为了便于管理，命名空间通过每个设备上存的*命名空间标签*来定义。这些标签存储在每个设备上的[标签存储区](#label-storage-area)中。
+
+​		在 Linux 上，[ndctl](#ndctl)命令提供了一种与产品无关的方法来管理命名空间。更多详细信息请参阅[create-namespace](https://pmem.io/ndctl/ndctl-create-namespace.html)命令。
+
+
+
+### ndctl
+
+​		在 Linux 系统上，**ndctl**命令提供[NVDIMM](#nvdimm)设备的管理 。此命令是供应商中立的，遵循开放标准，例如 ACPI 规范中的 NVDIMM 。
+
+​		某些产品还可能具有特定于供应商的命令来执行其他管理任务。例如，英特尔的[傲腾Optane PMem](#optane) 是使用`ipmctl`命令管理。
+
+​		详细信息请参阅[ndctl 手册页](https://pmem.io/ndctl/)。
+
+
+
+### NFIT
+
+(NVDIMM Firmware Interface Table)
+
+​		[ACPI规范](https://uefi.org/)定义了一个称为 NVDIMM 固件接口表或**NFIT**表。该表用于报告系统是否存在[持久内存](#persistent-memory)。当操作系统检测到此表时，通常会触发加载支持 NVDIMMs 的各种模块/驱动程序。
+
+​		顾名思义，NFIT 仅适用于 NVDIMMs。与任何PCIe设备一样，操作系统将使用标准PCIe总线遍历查找连接到[CXL](#cxl)的PMem。
+
+
+
+### NT Store
+
+(Non-Temporal Store)
+
+​		英特尔[软件开发手册](http://intel.com/sdm)(SDM) 描述了一种称为` _non-temporal stores*` 或`NT Stores`的存储类型。手册的摘录描述了它们存在的原因：
+
+> 程序引用的数据可以分为长期有用 temporal 的（数据将被再次使用）或临时用 non-temporal 的（数据被引用一次后不再使用）。例如，程序代码通常是长期有用，而多媒体数据例如 3-D 图形应用程序中的显示数据通常是临时用。为了更利用处理器的缓存，通常需要缓存长期有用的数据而不缓存临时用的数据。临时数据重载到处理器缓存有时被称为“污染缓存”。SSE 和 SSE2 缓存控制指令使程序能够以最小化污染缓存的方式将临时数据写入内存。
+
+​		对于[持久内存](https://pmem.io/glossary/#persistent-memory)，NT Store 有助于绕过 CPU 缓存，存储持久化时不需要额外使用像[CLWB](https://pmem.io/glossary/#clwb)这样的刷新指令。需要注意的是，Intel 的 NT Store 是*写组合 write combining* 而不是普通内存的*写回 write back*。这意味在发出像 SFENCE 这样的[fence](#fence)指令之前，这些存储不一定对其他线程全局可见。
+
+​		像[PMDK](#pmdk)这样的库大量使用 NT Store。例如[libpmem](#libpmem) 库，使用试探法 heuristics 决定使用 write-back-cached 指令或 NT stores 更好地复制内存范围。
+
+<img src="./flush_isa.jpeg" height="300px"/>
+
+
+
+
+
+### NVDIMM
+
+(Non-Volatile Dual In-line Memory Module)
+
+​		JEDEC 标准组织定义了多种类型的 **NVDIMM**，它们在 DIMM 结构上提供一些持久性。对于[持久内存](#persistent-memory)， [PMem 编程模型](#programming-model)支持的两种 *NVDIMM* 类型是 *NVDIMM-N* 和 *NVDIMM-P*。在 DIMM 结构上的第三种 PMem是英特尔的[傲腾Optane PMem](#optane) ，它使用专有的[DDR-T](#ddr-t)协议。
+
+
+
+### NVM
+
+(Non-Volatile Memory)
+
+​		在现代用法中，**NVM**指的是在断电时不会丢失信息的一类产品。与 [持久内存persistent-memory](#persistent-memory) 的现代用法进行比较，后者添加了加载/存储访问能力。 NVM 通常可以指像 SSD 或 PMem 之类的存储。持久内存不是指[块存储的产品](#block-storage)。
+
+
+
+### Optane
+
+(DCPMM, DCPM)
+
+​		**Optane**是英特尔使用[3D XPoint](#3d-xpoint)介质的产品线的品牌名称。该系列包括 Optane SSD（提供[块存储](#block-storage)接口）和 Optane PMem（提供[PMem 编程模型](#programming-model)）。
+
+<img src="./optane.jpeg" height="400px"/>
+
+​		如上图所示，Optane PMem 产品支持易失性模式，称为[Memory Mode](#memory-mode)，它使用[DRAM](#dram)作为 PMem 前置缓存。Optane PMem 还支持持久模式，称为[App Direct](#app-direct)，用于 PMem 用例。
+
+​		[PMDK](#pmdk)库用于Pmem编程，尤其是用于Optane PMEM的[App Direct](#app-direct)模式。
+
+​		有关傲腾的详细信息，请参阅[英特尔的傲腾官网](https://intel.com/optane)。
+
+
+
+### Paging
+
+​		在访问[块存储](https://pmem.io/glossary/#block-storage)上的数据结构时，**分页** 用于根据需要将适当的块带入 DRAM。分页可以对应用程序透明（即内核分页），或者应用程序可以自己管理分页（大多数高端数据库的场景）。
+
+​		[持久性内存](#persistent-memory)不需要分页访问，因为根据定义，它是可字节寻址的。这在多个方面都优于存储，因为没有分页意味着更低的延迟、不变的延迟，并且不需要从 DRAM 中驱逐其他数据来为入站页腾出空间。但是，一些 感知PMem应用程序可能仍会在 PMem 和 DRAM 之间移动块，以利用 DRAM 更高的性能来处理热数据。
+
+<img src="./paging.jpeg" height="300px"/>
+
+​		上图说明了如何使用分页实现基于存储的内存映射文件。应用程序通过字节可寻址访问 DRAM 中的文件数据，但当出现**页面缓存未命中时**，系统会暂停应用程序，同时将Page从块存储移动到 DRAM，可能会先驱逐另一个Page以腾出空间。
+
+
+
+### PCJ
+
+(Persistent Collections for Java)
+
+**PCJ**是一个为 Java 提供持久集合的*实验性*库。更多信息查阅[PCJ GitHub 页面](https://github.com/pmem/pcj)。
+
+
+
+### Persistence Domain
+
+(Power Fail Safe Domain)
+
+​		**Persistence Domain**是指软件认为存储到达该域后就算持久化的区域。对于[ADR](#adr)系统，Persistence Domain 是内存控制器——一旦存储被内存子系统接受，应用程序可以假设存储已持久。对于[eADR](#eadr)系统，当存储数据达到全局可见性时，就算到达持久域。
+
+
+
+### Persistent Memory
+
+(PMem, pmem, PM)
+
+​		[SNIA](#snia) NVM编程技术工作组在他们的论文中定义 **Persistent Memory**， [Pmem编程模型](#programming-model)：
+
+> 具有适用于加载和存储编程模型的性能特征的存储技术
+
+​		对于被视为持久内存的设备，它必须支持加载/存储编程模型并且足够快，以便软件以这种方式合理使用它。
+
+​		完整的[SNIA NVM 编程规范](https://www.snia.org/tech_activities/standards/curr_standards/npm)包含有关持久内存语义的更多详细信息。
+
+
+
+### PMDK
+
+(Persistent Memory Development Kit)
+
+​		**持久性存储器开发工具包**（**PMDK**） 是一系列库和工具的集合，致力于使持久性存储器编程更容易。这些库在 Linux 和 Windows 上进行了调整和验证，建立在这些操作系统的[DAX](#dax)功能上，允许应用程序访问持久内存作为内存映射文件，如 [SNIA NVM 编程模型](https://pmem.io/glossary/#programming-model)中所述。
+
+<img src="./pmdk.jpeg" height="300px"/>
+
+​		PMDK 的源代码分布在多个 [GitHub](https://pmem.io/repoindex) 项目中。 PMDK 库适合 PMem 编程模型，如图所示，其中应用程序可以从 PMDK 获取他们需要的内容，也可以继续使用模型提供的直接访问direct access。
+
+​		由于PMem可以使用普通文件 API，因此应用程序也可以使用它们，或使用任何构建在存储 API 上的库。但是这些 API 都是*基于缓冲区 buffer based* 的，要求通过应用程序提供的 DRAM 缓冲区来进出拷贝数据。PMDK 库提供分配和事务等功能，同时仍允许应用程序直接加载/存储访问其数据结构。
+
+<img src="./pmdklibs.jpeg" height="400px"/>
+
+​		上图显示了 PMDK 库的快速概览。volatile 库使用 PMem 作为存储，但不提供持久性，[memkind](#libmemkind)库是 volatile 用例中最常见的。
+
+​		低级库，如[libpmem2](#libpmem2)提供基本的数据移动和缓存刷新。更高级别的库建立在它们之上。
+
+​		最灵活和最常用的库是[libpmemobj](#libpmemobj)。
+
+​		[pmemkv](#libpmemkv)库提供了最高级别、最容易使用的接口，用于PMEM感知key-value形式的存储。
+
+​		[PMDK网站](https://pmem.io/pmdk)中详细介绍如何使用这些库。
+
+
+
+### PMem Programming Model
+
+**PMEM编程模型**有关的细节见[编程模型](#programming-model)
+
+
+
+### pmemhackathon
+
+(Persistent Memory Programming Workshop)
+
+​		多年来举办了一系列关于使用[持久内存](https://pmem.io/glossary/#persistent-memory)编程的研讨会，通常称为**PMem 黑客马拉松**。每个研讨会都包括一系列功能齐全的示例，对我而言，它们用来入门 PMem 编程。这些研讨会示例的存档位于[pmemhackathon.io](https://pmemhackathon.io/)，每个示例都以研讨会的日期命名。
+
+
+
+### PMoF
+
+(Persistent Memory over Fabrics)
+
+​		过去曾使用**PMoF**来指代 RDMA 访问远程持久内存。现在更常用的术语是[rpmem](#rpmem)。
+
+
+
+### Poison
+
+​		在英特尔服务器上，访问出现数据丢失（例如无法纠正的错误）的内存位置时会返回一个特殊的**Poison**值。使用Poison位置会触发*机器检查*事件，内核将异常返还给的使用Poison值的应用程序（内核本身是不可能使用Poison位置的，如果内核无法恢复，这会导致系统崩溃）。
+
+​		有关毒物如何影响[持久内存](#persistent-memory)感知应用程序的更多信息 ，请参阅有关[不可纠正错误](#uncorrectable-error) 和[爆炸半径blast-radius](#blast-radius)概念的条目。
+
+
+
+### Pool
+
+​		**Pool**是[PMDK](#pmdk)的一个概念，它是指系统分配的一些[持久存储](#persistent-memory)容量。Pool 通常只是感知PMem文件系统上可用于 PMDK 库的一个文件。使用术语*Pool*而不是*文件 file*是因为有时一个 Pool 可能包含多个文件（请参阅[poolset](#poolset)上的条目 ），有时一个 Pool 可能是[DAX](#device-dax) 设备。使用 PMDK 的应用程序将消除这些差异，只需使用Pool概念，而不必处理向 PMDK 提供容量的所有方式。
+
+
+
+### Poolset
+
+​		**poolset**是[PMDK](https://pmem.io/glossary/#pmdk)概念，其中多个文件或[DAX](#device-dax)设备被组合成单个逻辑Pool。Poolset 还支持应用程序透明的复制（至少在发生故障和需要管理操作之前）。
+
+​		详细信息请参阅 [Poolset手册](https://pmem.io/pmdk/manpages/linux/v1.4/poolset/poolset.5)。
+
+
+
+### Programming Model
+
+​		**Programming Model 编程模型**可以关联[持久内存](#persistent-memory)多个方面 。
+
+​		在最底层，编程模型描述了如何与硬件接口交互。对于持久内存，该接口类似于系统内存，其中访问通过加载和存储 CPU 指令进行。在此级别，还定义了[持久域 persistent-domain](#persistent-domain)。例如，在 Intel 硬件上，[CLWB](#clwb)等指令用于使存储持久化，[ADR](#adr)和[eADR](#eadr)等定义使用这些指令的方式和时间。
+
+​		*编程模型的*另一个用途是描述应用程序如何从操作系统访问持久内存。这是 SNIA NVM 编程模型适用的地方。	
+
+<img src="./nvmp.jpeg" height="400px"/>
+
+​		如上图所示，PMem 编程模型是一个通用的、操作系统和供应商中立的模型，其中持久内存由内核驱动程序（图中称为*通用 NVDIMM 驱动程序*）管理。该驱动程序提供用于管理 PMem 的运行状况和配置（左侧路径）的访问权限。它还提供对标准 [块存储](#block-storage)的访问接口（中间路径），以便为传统存储设计的文件系统和应用程序无需修改即可运行。右侧路径是大多数持久内存编程的重点，其中 PMem 感知文件系统将 PMem 当作文件。
+
+​		*PMem-aware 文件系统*的定义是当文件被内存映射时绕过系统页面缓存的文件系统。这意味着应用程序可以使用标准 API 映射 PMem 文件，例如Linux 上的[mmap](#mmap)和Windows上的[MapViewOfFile](#mapviewoffile)，结果将是[DAX](https://pmem.io/glossary/#dax)映射文件，使应用程序可以直接加载/存储访问持久内存本身。与普通内存映射文件（操作系统根据需要对 DRAM执行[分页](#paging)）不同，应用程序能够直接访问位于PMem中的持久内存数据结构。
+
+​		[PMDK](#pmdk)库是这种编程模型的顶层设计，为持久内存的操作提供更方便的抽象。应用程序级别的这种使用的工具和库，通常也使用*编程模型*来描述。这意味着我们已经描述了*编程模型的*三个定义（硬件接口、操作系统公开 PMem 的方式以及应用程序可用的完整编程环境）。该术语的所有用法都是可行的，但最常见的用法如 SNIA 模型所述。
+
+​		除了上述 PMem 编程模型之外，Linux 系统还提供了一种称为[设备 DAX](#device-dax)的替代方案。下图总结了可用于访问持久内存的各种方法。
+
+<img src="./access_slide.jpeg" height="450px"/>
+
+
+
+### Region
+
+​		**区域 Region**是[交织集interleave-set](https://pmem.io/glossary/#interleave-set)的另一种叫法。Linux 工具（例如[ndctl](#ndctl)）使用该术语，[CXL](#cxl) 规范也是如此。
+
+
+
+### RPMEM
+
+(Remote Persistent Memory)
+
+​		由于 PMem 可以像内存一样访问，因此直接访问内存的技术也适用于 PMem。RDMA 就是一个令人兴奋的例子，它允许低延迟、直接访问**远程持久内存**。
+
+​		[PMDK](#pmdk)库[librpma](#librpma)旨在帮助应用程序通过[持久性存储器](#persistent-memory)使用RDMA。
+
+​		使用 RPMEM 的一个优秀应用程序是 Oracle Exadata，如[他们的博客中所述](https://blogs.oracle.com/exadata/persistent-memory-in-exadata-x8m)。
+
+
+
+### SNIA
+
+(Storage Networking Industry Association)
+
+根据[SNIA 网站](https://snia.org/)，他们的使命宣言是：
+
+> 引领全球存储行业开发和推广供应商中立的架构、标准和教育服务，以促进信息的高效管理、移动和安全。
+
+对于[持久内存](#persistent-memory)，SNIA 在定义[NVM 编程规范](https://www.snia.org/tech_activities/standards/curr_standards/npm)所描述的[PMem 编程模型](#programming-model)方面发挥了核心作用。
+
+​	
+
+### Storage Class Memory
+
+(SCM)
+
+​		**Storage Class Memory**是[持久内存](#persistent-memory)的同义词 。在[SNIA](https://pmem.io/glossary/#snia) 文档更喜欢用**persistent memory**，但是这两个术语在本专题的学术论文中都能找到使用。
+
+
+
+### Transaction
+
+​		在持久内存编程的世界中，**事务**是维护持久数据结构一致的常用工具。程序员最熟悉需要在存储上保持一致的数据结构，例如存储在磁盘上的数据库。诸如*预写日志记录 write ahead logging*之类的技术通常用于确保数据库在遇到意外故障（如系统崩溃或电源故障）时处于一致状态。
+
+​		对于传统[DRAM中的](#dram)数据结构，应用程序员熟悉*多线程*编程技术，以确保每个线程在访问数据结构时看到的状态一致。但是如果程序崩溃或系统断电，那些驻留在 DRAM 的数据结构就会消失，因此不需要像上面的数据库示例那样进行日志记录。
+
+​		[持久内存](#persistent-memory) 将这两个世界结合在一起：持久内存常驻数据结构通常被多线程编程技术以及事务/日志技术覆盖，以确保持久数据结构在面对故障时的一致性。由于 PMem 是可加载/存储的，比[块存储](/#block-storage)相比，可以以更优化、更细粒度的方式实现事务。
+
+​		[PMDK](#pmdk)库[libpmemobj](https://pmem.io/glossary/#libpmemobj)提供了在PMEM常驻数据结构的事务支持。
+
+
+
+### Uncorrectable Error
+
+​		当存储设备遇到无法**纠正的错误时**，通常会导致应用程序在使用存储 API 访问丢失的数据时将错误传回给应用程序。但是对于[持久内存](https://pmem.io/glossary/#persistent-memory)，此类错误的行为更类似于[DRAM](#dram)而不是存储。
+
+​		当服务器应用程序读取包含不可纠正错误的内存位置时，系统必须返回异常以防止应用程序使用损坏的数据。在英特尔服务器上，CPU 被发送一个*poison value*来表示丢失的数据，当poison被软件使用时，英特尔服务器会生成一个*机器检查异常*。此异常允许内核向应用程序返回异常，例如向 Linux 应用程序发送*SIGBUS*信号。在某些情况下，机器检查对系统来说是致命的，因此它会导致崩溃（例如，当内核本身是poison的使用者时）。
+
+​		持久内存感知应用程序在 PMem 中遇到无法纠正的错误，就像它们在 DRAM 中所做的一样。不同之处在于，当应用程序由于 DRAM 无法纠正的错误而崩溃时，该 poison 位置在应用程序重新启动时消失了——易失性内存总是从新开始，之前运行的内容不会保留。
+
+​		显然，PMem 是不同的，其内容被设计为保留下来。因此，如果应用程序由于 PMem 中不可纠正的错误而崩溃，它很可能会在重新启动后再次尝试访问相同的位置，并由于同样的不可纠正的错误而再次崩溃。这导致对 PMem 感知应用程序的更复杂要求，以避免这些循环崩溃。为了解决这种情况，系统需要提供一个已知[bad-blocks](#bad-blocks)的列表，以便应用程序可以避免访问这些区域。应用程序架构师还必须意识到不可纠正错误的 [爆炸半径blast-radius](#blast-radius)，当它们发生时，这可能导致比单个内存位置更多的数据丢失。
+
+​		此[文章Optane RAS](https://software.intel.com/content/www/us/en/develop/articles/pmem-RAS.html) 包含关于此主题的更多细节。
 
